@@ -13,8 +13,13 @@ export function NavBar({
           href={user ? "/jogos" : "/"}
           className="flex items-center gap-2 font-bold text-brand"
         >
-          <span className="text-xl">⚽</span>
-          <span>Palpites da Copa</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-icon.png"
+            alt="Palpitando na Copa"
+            className="h-8 w-8 rounded-md object-contain"
+          />
+          <span>Palpitando na Copa</span>
         </Link>
         {user ? (
           <nav className="flex items-center gap-3 text-sm">

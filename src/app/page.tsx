@@ -7,10 +7,13 @@ export default async function Home() {
   if (user) redirect("/jogos");
   return (
     <div className="flex flex-col items-center gap-6 py-10 text-center">
-      <div className="text-6xl">⚽</div>
-      <h1 className="text-3xl font-extrabold text-gray-900">
-        Palpites da Copa do Mundo
-      </h1>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-hero.png"
+        alt="Palpitando na Copa"
+        className="w-full max-w-xl rounded-2xl card-shadow"
+      />
+      <h1 className="sr-only">Palpitando na Copa</h1>
       <p className="max-w-md text-gray-600">
         Um jogo por dia. Escolha o card que voce acha que vai acontecer, dispute
         com os amigos em ligas privadas e suba no ranking. Palpite ate 1 minuto
@@ -32,7 +35,7 @@ export default async function Home() {
       </div>
       <div className="mt-6 grid w-full max-w-lg grid-cols-3 gap-3 text-sm">
         <div className="rounded-lg bg-white p-4 card-shadow">
-          <div className="text-2xl">🎯</div>5 palpites por jogo
+          <div className="text-2xl">🎯</div>6 palpites por jogo
         </div>
         <div className="rounded-lg bg-white p-4 card-shadow">
           <div className="text-2xl">🏆</div>Ligas com amigos
