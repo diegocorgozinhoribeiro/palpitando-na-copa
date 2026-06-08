@@ -1,12 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { randomBytes, createHash } from "crypto";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, passwordResets } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { setSessionCookie, clearSessionCookie, requireUser } from "@/lib/auth";
 import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { sendEmail } from "@/lib/mailer";
 
 function validEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -101,4 +103,96 @@ export async function deleteAccountAction() {
   await db.delete(users).where(eq(users.id, user.id));
   await clearSessionCookie();
   redirect("/");
+}
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+// "Esqueci minha senha": gera um token, salva o hash e envia o link por e-mail.
+// Sempre retorna sucesso generico para nao revelar quais e-mails existem.
+export async function requestPasswordResetAction(
+  _prev: unknown,
+  formData: FormData,
+) {
+  const ip = await getClientIp();
+  const rl = rateLimit(`reset-request:${ip}`, 5, 60 * 60 * 1000);
+  if (!rl.ok)
+    return {
+      error: `Muitas tentativas. Tente novamente em ${rl.retryAfter}s.`,
+    };
+
+  const email = String(formData.get("email") || "")
+    .trim()
+    .toLowerCase();
+  if (!validEmail(email)) return { error: "E-mail invalido." };
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (user) {
+    const token = randomBytes(32).toString("hex");
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // valido por 1 hora
+    await db
+      .insert(passwordResets)
+      .values({ userId: user.id, tokenHash, expiresAt });
+
+    const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const link = `${base.replace(/\/$/, "")}/redefinir-senha?token=${token}`;
+    await sendEmail({
+      to: email,
+      subject: "Redefinir sua senha - Palpitando na Copa",
+      text: `Voce pediu para redefinir sua senha no Palpitando na Copa.\n\nAbra o link abaixo (valido por 1 hora):\n${link}\n\nSe nao foi voce, ignore este e-mail.`,
+      html: `<p>Voce pediu para redefinir sua senha no <strong>Palpitando na Copa</strong>.</p><p><a href="${link}">Clique aqui para criar uma nova senha</a> (link valido por 1 hora).</p><p>Se nao foi voce, pode ignorar este e-mail.</p>`,
+    });
+  }
+
+  return { ok: true };
+}
+
+// Define a nova senha a partir de um token valido.
+export async function resetPasswordAction(_prev: unknown, formData: FormData) {
+  const token = String(formData.get("token") || "").trim();
+  const password = String(formData.get("password") || "");
+  const confirm = String(formData.get("confirm") || "");
+
+  if (!token) return { error: "Link invalido." };
+  const pwError = validatePassword(password);
+  if (pwError) return { error: pwError };
+  if (password !== confirm) return { error: "As senhas nao conferem." };
+
+  const tokenHash = hashToken(token);
+  const [pr] = await db
+    .select()
+    .from(passwordResets)
+    .where(
+      and(
+        eq(passwordResets.tokenHash, tokenHash),
+        isNull(passwordResets.usedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!pr || pr.expiresAt.getTime() < Date.now()) {
+    return { error: "Link invalido ou expirado. Solicite um novo." };
+  }
+
+  await db
+    .update(users)
+    .set({ passwordHash: hashPassword(password) })
+    .where(eq(users.id, pr.userId));
+
+  // Invalida este e quaisquer outros tokens pendentes do usuario.
+  await db
+    .update(passwordResets)
+    .set({ usedAt: new Date() })
+    .where(
+      and(eq(passwordResets.userId, pr.userId), isNull(passwordResets.usedAt)),
+    );
+
+  redirect("/login?reset=1");
 }

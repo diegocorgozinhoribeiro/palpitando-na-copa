@@ -145,6 +145,23 @@ export const leagueMembers = pgTable(
   }),
 );
 
+// ---------------------------------------------------------------------------
+// Tokens de redefinicao de senha ("esqueci minha senha")
+// Guardamos apenas o hash do token; o token em si vai por e-mail.
+// ---------------------------------------------------------------------------
+export const passwordResets = pgTable("password_resets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type Question = typeof questions.$inferSelect;
@@ -152,3 +169,4 @@ export type MatchQuestion = typeof matchQuestions.$inferSelect;
 export type Prediction = typeof predictions.$inferSelect;
 export type League = typeof leagues.$inferSelect;
 export type LeagueMember = typeof leagueMembers.$inferSelect;
+export type PasswordReset = typeof passwordResets.$inferSelect;

@@ -12,17 +12,20 @@
     "seed": "tsx src/scripts/seed.ts",
     "draw": "tsx src/scripts/draw.ts",
     "db:dedupe": "tsx src/scripts/dedupeMatches.ts",
-    "db:migrate": "tsx src/scripts/migrate.ts"
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:add-password-resets": "tsx src/scripts/addPasswordResets.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.36.4",
     "next": "^15.1.6",
+    "nodemailer": "^6.9.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",

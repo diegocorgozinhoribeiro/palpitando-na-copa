@@ -12,10 +12,12 @@ export function AuthForm({
   mode,
   action,
   next,
+  notice,
 }: {
   mode: "login" | "register";
   action: Action;
   next?: string;
+  notice?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const isRegister = mode === "register";
@@ -24,6 +26,11 @@ export function AuthForm({
       <h1 className="mb-4 text-xl font-bold">
         {isRegister ? "Criar conta" : "Entrar"}
       </h1>
+      {notice && (
+        <p className="mb-3 rounded-lg bg-green-50 p-2 text-sm text-green-700">
+          {notice}
+        </p>
+      )}
       <form action={formAction} className="flex flex-col gap-3">
         <input type="hidden" name="next" value={next || "/jogos"} />
         {isRegister && (
@@ -86,6 +93,13 @@ export function AuthForm({
           {pending ? "Aguarde..." : isRegister ? "Cadastrar" : "Entrar"}
         </button>
       </form>
+      {!isRegister && (
+        <p className="mt-3 text-center text-sm">
+          <Link href="/esqueci-senha" className="text-brand hover:underline">
+            Esqueceu a senha?
+          </Link>
+        </p>
+      )}
       <p className="mt-4 text-center text-sm text-gray-500">
         {isRegister ? (
           <>
