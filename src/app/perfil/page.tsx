@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getUserTotalPoints, getUserLeagues } from "@/lib/queries";
 import { logoutAction } from "@/app/(auth)/actions";
+import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,14 @@ export default async function PerfilPage() {
           Sair da conta
         </button>
       </form>
+
+      <div className="mt-2 border-t border-gray-200 pt-4">
+        <p className="mb-2 text-xs text-gray-400">
+          Conforme a LGPD, você pode excluir sua conta e todos os seus dados a
+          qualquer momento. Esta ação é permanente.
+        </p>
+        <DeleteAccountForm />
+      </div>
     </div>
   );
 }

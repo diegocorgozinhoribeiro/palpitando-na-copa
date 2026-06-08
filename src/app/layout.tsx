@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Link from "next/link";
 import { NavBar } from "@/components/NavBar";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -22,7 +23,19 @@ export default async function RootLayout({
         />
         <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
         <footer className="mx-auto w-full max-w-3xl px-4 py-8 text-center text-xs text-gray-400">
-          Palpitando na Copa · feito para a galera · horarios em Brasilia
+          <p>Palpitando na Copa · feito para a galera · horarios em Brasilia</p>
+          <p className="mt-1">
+            <Link
+              href="/privacidade"
+              className="hover:text-brand hover:underline"
+            >
+              Privacidade
+            </Link>{" "}
+            ·{" "}
+            <Link href="/termos" className="hover:text-brand hover:underline">
+              Termos
+            </Link>
+          </p>
         </footer>
       </body>
     </html>

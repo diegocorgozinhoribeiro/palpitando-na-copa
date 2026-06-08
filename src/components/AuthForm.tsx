@@ -46,8 +46,38 @@ export function AuthForm({
           type="password"
           placeholder="Senha"
           required
+          minLength={isRegister ? 8 : undefined}
           className="rounded-lg border border-gray-300 px-3 py-2"
         />
+        {isRegister && (
+          <p className="-mt-1 text-xs text-gray-400">
+            Mínimo 8 caracteres, com letras e números.
+          </p>
+        )}
+        {isRegister && (
+          <label className="flex items-start gap-2 text-xs text-gray-500">
+            <input type="checkbox" name="consent" required className="mt-0.5" />
+            <span>
+              Li e aceito a{" "}
+              <Link
+                href="/privacidade"
+                target="_blank"
+                className="text-brand hover:underline"
+              >
+                Política de Privacidade
+              </Link>{" "}
+              e os{" "}
+              <Link
+                href="/termos"
+                target="_blank"
+                className="text-brand hover:underline"
+              >
+                Termos de Uso
+              </Link>
+              .
+            </span>
+          </label>
+        )}
         {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
         <button
           disabled={pending}

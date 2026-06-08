@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { matches, matchQuestions, predictions } from "@/db/schema";
@@ -83,7 +84,9 @@ export async function saveAllPredictionsAction(
   }
 
   revalidatePath(`/jogos/${matchId}`);
-  return { ok: true, salvos };
+  revalidatePath("/jogos");
+  // Apos salvar, volta para a lista de jogos para o usuario escolher o proximo.
+  redirect("/jogos");
 }
 
 void and;
