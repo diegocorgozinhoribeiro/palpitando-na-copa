@@ -69,7 +69,6 @@ export async function saveAllPredictionsAction(
     .from(matchQuestions)
     .where(eq(matchQuestions.matchId, matchId));
 
-  let salvos = 0;
   for (const mq of mqs) {
     const resposta = String(formData.get(`q_${mq.id}`) || "").trim();
     if (!resposta) continue;
@@ -80,7 +79,6 @@ export async function saveAllPredictionsAction(
         target: [predictions.userId, predictions.matchQuestionId],
         set: { resposta },
       });
-    salvos++;
   }
 
   revalidatePath(`/jogos/${matchId}`);

@@ -175,12 +175,7 @@ export function PredictionForm({
         );
       })}
 
-      {state && "error" in state && state.error && (
-        <p className="text-sm text-red-600">{state.error}</p>
-      )}
-      {state && "ok" in state && state.ok && (
-        <p className="text-sm text-green-600">Palpites salvos! ✅</p>
-      )}
+      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
 
       {!disabled && (
         <button
