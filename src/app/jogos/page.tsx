@@ -1,10 +1,16 @@
-import { listVisibleMatches } from "@/lib/queries";
+import { listVisibleMatches, getUserPalpitadoMatchIds } from "@/lib/queries";
+import { getCurrentUser } from "@/lib/auth";
 import { MatchList } from "@/components/MatchList";
 
 export const dynamic = "force-dynamic";
 
 export default async function JogosPage() {
-  const all = await listVisibleMatches();
+  const user = await getCurrentUser();
+  const [all, palpitadoIds] = await Promise.all([
+    listVisibleMatches(),
+    user ? getUserPalpitadoMatchIds(user.id) : Promise.resolve<string[]>([]),
+  ]);
+  const palpitadoSet = new Set(palpitadoIds);
   const items = all.map((m) => ({
     id: m.id,
     teamA: m.teamA,
@@ -16,6 +22,7 @@ export default async function JogosPage() {
     status: m.status,
     scoreA: m.scoreA,
     scoreB: m.scoreB,
+    palpitado: palpitadoSet.has(m.id),
   }));
   return (
     <div className="flex flex-col gap-4">

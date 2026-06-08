@@ -69,6 +69,33 @@ export async function getUserPredictionsForMatch(
   return map;
 }
 
+// IDs dos jogos em que o usuario ja preencheu TODOS os palpites.
+// Comparamos o total de perguntas do jogo com quantas o usuario respondeu.
+export async function getUserPalpitadoMatchIds(
+  userId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({
+      matchId: matchQuestions.matchId,
+      total: sql<number>`count(distinct ${matchQuestions.id})`,
+      answered: sql<number>`count(distinct ${predictions.matchQuestionId})`,
+    })
+    .from(matchQuestions)
+    .leftJoin(
+      predictions,
+      and(
+        eq(predictions.matchQuestionId, matchQuestions.id),
+        eq(predictions.userId, userId),
+      ),
+    )
+    .groupBy(matchQuestions.matchId);
+  return rows
+    .filter(
+      (r) => Number(r.total) > 0 && Number(r.total) === Number(r.answered),
+    )
+    .map((r) => r.matchId);
+}
+
 // Proximo jogo aberto ("jogo do dia"): o de menor ordem ainda agendado.
 export async function getNextOpenMatch() {
   const [m] = await db

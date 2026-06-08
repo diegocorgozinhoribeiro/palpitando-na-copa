@@ -15,6 +15,7 @@ export type MatchItem = {
   status: string;
   scoreA: number | null;
   scoreB: number | null;
+  palpitado: boolean; // true = usuario ja preencheu todos os palpites do jogo
 };
 
 // Quantos grupos de data sao exibidos antes do botao "Ver mais".
@@ -48,11 +49,25 @@ function timeBR(iso: string): string {
   }).format(new Date(iso));
 }
 
-function StatusBadge({ open, status }: { open: boolean; status: string }) {
+function StatusBadge({
+  open,
+  status,
+  palpitado,
+}: {
+  open: boolean;
+  status: string;
+  palpitado: boolean;
+}) {
   if (status === "finalizado")
     return (
       <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
         Finalizado
+      </span>
+    );
+  if (palpitado)
+    return (
+      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+        ✓ Palpitado
       </span>
     );
   if (open)
@@ -128,7 +143,11 @@ export function MatchList({ matches }: { matches: MatchItem[] }) {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <StatusBadge open={open} status={m.status} />
+                      <StatusBadge
+                        open={open}
+                        status={m.status}
+                        palpitado={m.palpitado}
+                      />
                       {m.status === "finalizado" && m.scoreA != null && (
                         <span className="text-sm font-bold">
                           {m.scoreA}-{m.scoreB}
