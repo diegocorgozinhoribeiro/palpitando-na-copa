@@ -5,6 +5,8 @@ import nodemailer from "nodemailer";
 //   (Use uma "Senha de app" do Google, NAO a senha normal da conta.)
 // - Caso contrario, apenas registra o conteudo no log do servidor (util em
 //   teste e evita quebrar o fluxo enquanto o e-mail nao esta configurado).
+// Usamos timeouts curtos para a requisicao NUNCA ficar travada se o SMTP
+// demorar ou estiver bloqueado.
 type SendArgs = {
   to: string;
   subject: string;
@@ -35,8 +37,13 @@ export async function sendEmail({
 
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // STARTTLS na porta 587 (mais compativel que a 465)
       auth: { user, pass },
+      connectionTimeout: 10000, // 10s para abrir a conexao
+      greetingTimeout: 10000, // 10s para o servidor responder
+      socketTimeout: 15000, // 15s de inatividade
     });
     await transporter.sendMail({ from, to, subject, html, text });
     return true;
