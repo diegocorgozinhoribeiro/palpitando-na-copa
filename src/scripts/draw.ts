@@ -13,8 +13,9 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// Sorteia QUESTIONS_PER_MATCH perguntas para um jogo, garantindo que a
-// pergunta 'vencedor' sempre esteja presente (e o card principal do jogo).
+// Sorteia QUESTIONS_PER_MATCH perguntas para um jogo, garantindo que as
+// perguntas FIXAS ('vencedor' e 'placar_exato') sempre estejam presentes.
+const FIXED_CODES = ["vencedor", "placar_exato"];
 export async function drawQuestionsForMatch(matchId: string): Promise<boolean> {
   const existing = await db
     .select({ id: matchQuestions.id })
@@ -29,11 +30,13 @@ export async function drawQuestionsForMatch(matchId: string): Promise<boolean> {
   if (pool.length === 0)
     throw new Error("Pool de perguntas vazio. Rode o seed antes.");
 
-  const vencedor = pool.find((q) => q.codigo === "vencedor");
-  const resto = shuffle(pool.filter((q) => q.codigo !== "vencedor"));
+  // Perguntas fixas primeiro (na ordem definida em FIXED_CODES).
+  const fixas = FIXED_CODES.map((code) =>
+    pool.find((q) => q.codigo === code),
+  ).filter((q): q is (typeof pool)[number] => Boolean(q));
+  const resto = shuffle(pool.filter((q) => !FIXED_CODES.includes(q.codigo)));
 
-  const escolhidas = [] as typeof pool;
-  if (vencedor) escolhidas.push(vencedor);
+  const escolhidas = [...fixas];
   for (const q of resto) {
     if (escolhidas.length >= QUESTIONS_PER_MATCH) break;
     escolhidas.push(q);

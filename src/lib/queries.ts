@@ -96,6 +96,33 @@ export async function getUserPalpitadoMatchIds(
     .map((r) => r.matchId);
 }
 
+// Pontos (e acertos) do usuario em cada jogo. Mapa matchId -> { pontos, acertos }.
+// So existe entrada para jogos em que o usuario palpitou ao menos uma vez.
+export async function getUserPointsByMatch(
+  userId: string,
+): Promise<Record<string, { pontos: number; acertos: number }>> {
+  const rows = await db
+    .select({
+      matchId: matchQuestions.matchId,
+      pontos: sql<number>`coalesce(sum(${predictions.pontos}), 0)`,
+      acertos: sql<number>`coalesce(sum(case when ${predictions.acertou} then 1 else 0 end), 0)`,
+    })
+    .from(predictions)
+    .innerJoin(
+      matchQuestions,
+      eq(predictions.matchQuestionId, matchQuestions.id),
+    )
+    .where(eq(predictions.userId, userId))
+    .groupBy(matchQuestions.matchId);
+  const map: Record<string, { pontos: number; acertos: number }> = {};
+  for (const r of rows)
+    map[r.matchId] = {
+      pontos: Number(r.pontos),
+      acertos: Number(r.acertos),
+    };
+  return map;
+}
+
 // Proximo jogo aberto ("jogo do dia"): o de menor ordem ainda agendado.
 export async function getNextOpenMatch() {
   const [m] = await db
