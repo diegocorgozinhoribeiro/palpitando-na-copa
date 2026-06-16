@@ -44,8 +44,14 @@ export function rodadaForOrdem(ordem: number): number {
 // ---------------------------------------------------------------------------
 // Minimo de palpites na pergunta para a odd "ativar". Abaixo disso paga a base.
 export const ODD_MIN_PALPITES = 2;
-// Teto de pontos que uma pergunta pode pagar com a odd.
+// Teto de pontos que uma pergunta pode pagar com a odd (trava de seguranca).
 export const ODD_MAX_PONTOS = 300;
+// Limites do multiplicador da odd:
+//   1.0  = opcao na "fatia justa" (todos divididos igualmente) -> paga a base
+//   <1.0 = opcao mais escolhida que a media (favorita) -> paga MENOS que a base
+//   >1.0 = opcao menos escolhida (azarao) -> paga MAIS que a base
+export const ODD_MULT_MIN = 0.5; // favorita paga no minimo metade da base
+export const ODD_MULT_MAX = 3; // azarao paga no maximo 3x a base
 // Perguntas que NAO entram no sistema de odd (pagam sempre a base).
 export const NO_ODD_CODES = ["placar_exato"];
 
