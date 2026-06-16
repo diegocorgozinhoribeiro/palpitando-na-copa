@@ -14,7 +14,8 @@
     "db:dedupe": "tsx src/scripts/dedupeMatches.ts",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:add-password-resets": "tsx src/scripts/addPasswordResets.ts",
-    "db:pin-placar": "tsx src/scripts/pinPlacarExato.ts"
+    "db:pin-placar": "tsx src/scripts/pinPlacarExato.ts",
+    "db:set-rodadas": "tsx src/scripts/setRodadas.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

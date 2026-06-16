@@ -12,6 +12,8 @@ type Card = {
   opcoes: string[];
   respostaCorreta: string | null;
   minhaResposta: string | null;
+  // Rodada 2+: pontos que cada opcao paga (base x odd). null = sem odd.
+  odds?: Record<string, number> | null;
 };
 
 const DIFF_LABEL: Record<string, string> = {
@@ -45,14 +47,17 @@ export function PredictionForm({
   cards,
   open,
   finalizado,
+  rodada,
   closeAt,
 }: {
   matchId: string;
   cards: Card[];
   open: boolean;
   finalizado: boolean;
+  rodada?: number;
   closeAt: number;
 }) {
+  const usaOdd = (rodada ?? 1) >= 2;
   const [state, formAction, pending] = useActionState(
     saveAllPredictionsAction,
     undefined,
@@ -70,6 +75,16 @@ export function PredictionForm({
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="matchId" value={matchId} />
+
+      {usaOdd && (
+        <div className="rounded-lg bg-accent/15 px-4 py-3 text-sm text-brand-dark">
+          <span className="font-semibold">Rodada com ODD ⚡</span> — quanto
+          menos gente escolher uma opção, mais pontos ela paga se você acertar.
+          Os pontos mostrados são uma projeção; vale a odd no fechamento do
+          mercado.
+          {finalizado ? " (valores finais)" : ""}
+        </div>
+      )}
 
       <div className="flex items-center justify-between rounded-lg bg-brand-light px-4 py-2 text-sm">
         <span>{cards.length} palpites neste jogo</span>
@@ -137,6 +152,7 @@ export function PredictionForm({
                         ? "sim"
                         : "nao"
                       : null;
+                  const optPts = c.odds ? c.odds[opt] : null;
                   return (
                     <button
                       type="button"
@@ -144,7 +160,7 @@ export function PredictionForm({
                       disabled={disabled}
                       onClick={() => setPicks((p) => ({ ...p, [c.mqId]: opt }))}
                       className={[
-                        "rounded-lg border px-3 py-2.5 text-sm font-medium transition",
+                        "flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2.5 text-sm font-medium transition",
                         selected
                           ? "border-brand bg-brand text-white"
                           : "border-gray-300 bg-white text-gray-700 hover:border-brand",
@@ -157,7 +173,17 @@ export function PredictionForm({
                           : "",
                       ].join(" ")}
                     >
-                      {opt}
+                      <span>{opt}</span>
+                      {optPts != null && (
+                        <span
+                          className={[
+                            "text-xs font-bold",
+                            selected ? "text-white" : "text-accent",
+                          ].join(" ")}
+                        >
+                          paga {optPts} pts
+                        </span>
+                      )}
                     </button>
                   );
                 })}

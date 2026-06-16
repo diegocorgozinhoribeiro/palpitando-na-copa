@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { colocacaoPontos } from "@/lib/constants";
 import {
   matches,
   matchQuestions,
@@ -38,6 +39,7 @@ export async function getMatchWithQuestions(matchId: string) {
       dificuldade: questions.dificuldade,
       pontos: questions.pontos,
       opcoes: questions.opcoes,
+      odds: matchQuestions.odds,
     })
     .from(matchQuestions)
     .innerJoin(questions, eq(matchQuestions.questionId, questions.id))
@@ -218,3 +220,175 @@ export async function getUserTotalPoints(userId: string) {
     .where(eq(predictions.userId, userId));
   return row ?? { pontos: 0, acertos: 0, palpites: 0 };
 }
+
+// ---------------------------------------------------------------------------
+// RANKING POR RODADA + GERAL (pontos de colocacao)
+// ---------------------------------------------------------------------------
+type RankRow = {
+  userId: string;
+  name: string;
+  pontos: number;
+  acertos: number;
+};
+
+export type FullRanking = {
+  rounds: number[];
+  currentRound: number;
+  perRound: Record<number, RankRow[]>;
+  geral: RankRow[];
+};
+
+// Monta TODO o ranking (cada rodada + geral) de uma vez. Se leagueId for
+// passado, restringe aos membros daquela liga; senao, ranking global.
+export async function getFullRanking(leagueId?: string): Promise<FullRanking> {
+  // 1) Conjunto de usuarios (todos, ou os membros da liga).
+  let userIdSet: Set<string> | null = null;
+  if (leagueId) {
+    const mem = await db
+      .select({ uid: leagueMembers.userId })
+      .from(leagueMembers)
+      .where(eq(leagueMembers.leagueId, leagueId));
+    userIdSet = new Set(mem.map((m) => m.uid));
+  }
+  const allUsers = await db
+    .select({ id: users.id, name: users.name })
+    .from(users);
+  const nameMap = new Map(
+    allUsers
+      .filter((u) => !userIdSet || userIdSet.has(u.id))
+      .map((u) => [u.id, u.name] as const),
+  );
+
+  // 2) Pontos/acertos/palpites por (usuario, rodada).
+  const aggRows = await db
+    .select({
+      userId: predictions.userId,
+      rodada: matches.rodada,
+      pontos: sql<number>`coalesce(sum(${predictions.pontos}), 0)`,
+      acertos: sql<number>`coalesce(sum(case when ${predictions.acertou} then 1 else 0 end), 0)`,
+      palpites: sql<number>`count(${predictions.id})`,
+    })
+    .from(predictions)
+    .innerJoin(
+      matchQuestions,
+      eq(predictions.matchQuestionId, matchQuestions.id),
+    )
+    .innerJoin(matches, eq(matchQuestions.matchId, matches.id))
+    .groupBy(predictions.userId, matches.rodada);
+  const agg = aggRows.filter((r) => r.rodada != null && nameMap.has(r.userId));
+
+  // 3) Rodadas existentes (jogos ja definidos).
+  const roundRows = await db
+    .selectDistinct({ rodada: matches.rodada })
+    .from(matches)
+    .where(eq(matches.definido, true));
+  const rounds = roundRows
+    .map((r) => Number(r.rodada))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b);
+
+  // 4) Ranking de cada rodada (so participantes daquela rodada).
+  const perRound: Record<number, RankRow[]> = {};
+  for (const rd of rounds) {
+    // So entra no ranking quem JA pontuou (pontos > 0). Quem apenas palpitou
+    // (jogos ainda nao apurados) ou zerou tudo nao aparece.
+    perRound[rd] = agg
+      .filter((a) => Number(a.rodada) === rd && Number(a.pontos) > 0)
+      .map((a) => ({
+        userId: a.userId,
+        name: String(nameMap.get(a.userId) ?? "-"),
+        pontos: Number(a.pontos),
+        acertos: Number(a.acertos),
+      }))
+      .sort((x, y) => y.pontos - x.pontos || y.acertos - x.acertos);
+  }
+
+  // 5) Ranking GERAL por pontos de colocacao.
+  const totals = new Map<string, { pontos: number; acertos: number }>();
+  for (const rd of rounds) {
+    const rows = perRound[rd];
+    let pos = 0;
+    let seen = 0;
+    let prevP: number | null = null;
+    let prevA: number | null = null;
+    for (const r of rows) {
+      seen++;
+      if (prevP === null || r.pontos !== prevP || r.acertos !== prevA) {
+        pos = seen;
+        prevP = r.pontos;
+        prevA = r.acertos;
+      }
+      const cp = colocacaoPontos(pos);
+      const t = totals.get(r.userId) ?? { pontos: 0, acertos: 0 };
+      t.pontos += cp;
+      t.acertos += r.acertos;
+      totals.set(r.userId, t);
+    }
+  }
+  const geral = [...totals.entries()]
+    .map(([userId, t]) => ({
+      userId,
+      name: String(nameMap.get(userId) ?? "-"),
+      pontos: t.pontos,
+      acertos: t.acertos,
+    }))
+    .sort((a, b) => b.pontos - a.pontos || b.acertos - a.acertos);
+
+  // 6) Rodada atual = menor rodada com jogos ainda nao finalizados.
+  const openRows = await db
+    .select({ rodada: matches.rodada })
+    .from(matches)
+    .where(
+      and(eq(matches.definido, true), sql`${matches.status} <> 'finalizado'`),
+    )
+    .orderBy(asc(matches.rodada))
+    .limit(1);
+  const currentRound =
+    openRows.length && openRows[0].rodada != null
+      ? Number(openRows[0].rodada)
+      : (rounds[rounds.length - 1] ?? 1);
+
+  return { rounds, currentRound, perRound, geral };
+}
+
+// Contagem de palpites por opcao de cada pergunta de um jogo (distribuicao
+// atual). Usado para mostrar as odds "ao vivo" no formulario de palpites.
+// Retorna mapa: mqId -> { total, counts: { respostaNormalizada -> n } }.
+export async function getMatchAnswerCounts(
+  matchId: string,
+): Promise<Record<string, { total: number; counts: Record<string, number> }>> {
+  const rows = await db
+    .select({
+      mqId: predictions.matchQuestionId,
+      resposta: predictions.resposta,
+      n: sql<number>`count(*)`,
+    })
+    .from(predictions)
+    .innerJoin(
+      matchQuestions,
+      eq(predictions.matchQuestionId, matchQuestions.id),
+    )
+    .where(eq(matchQuestions.matchId, matchId))
+    .groupBy(predictions.matchQuestionId, predictions.resposta);
+
+  const out: Record<string, { total: number; counts: Record<string, number> }> =
+    {};
+  for (const r of rows) {
+    const key = normalizeAnswer(r.resposta);
+    const entry = out[r.mqId] ?? { total: 0, counts: {} };
+    entry.counts[key] = (entry.counts[key] ?? 0) + Number(r.n);
+    entry.total += Number(r.n);
+    out[r.mqId] = entry;
+  }
+  return out;
+}
+
+function normalizeAnswer(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+void inArray;
