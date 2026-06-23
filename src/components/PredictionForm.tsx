@@ -221,9 +221,14 @@ export function PredictionForm({
 }
 
 function normalize(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  const raw = s.trim().toLowerCase();
+
+  // Mesmo tratamento do backend: 2x1, 2 x 1, 2-1, 2:1, 02x01 e 2 a 1
+  // contam como o mesmo placar.
+  const score = raw.match(/^(\d+)\s*(?:x|-|:|a)\s*(\d+)$/i);
+  if (score) {
+    return `${Number(score[1])}-${Number(score[2])}`;
+  }
+
+  return raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

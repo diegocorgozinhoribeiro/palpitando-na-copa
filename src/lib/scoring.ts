@@ -101,9 +101,15 @@ export async function scoreMatch(matchId: string): Promise<void> {
 }
 
 function normalize(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  const raw = s.trim().toLowerCase();
+
+  // Tratamento especial para placar exato.
+  // Considera equivalentes formatos como:
+  //   2x1, 2 x 1, 2-1, 2 : 1, 02x01, 2 a 1
+  const score = raw.match(/^(\d+)\s*(?:x|-|:|a)\s*(\d+)$/i);
+  if (score) {
+    return `${Number(score[1])}-${Number(score[2])}`;
+  }
+
+  return raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
