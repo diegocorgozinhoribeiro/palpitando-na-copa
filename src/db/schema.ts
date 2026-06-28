@@ -31,6 +31,7 @@ export const matches = pgTable("matches", {
   id: uuid("id").primaryKey().defaultRandom(),
   ordem: integer("ordem").notNull().unique(), // ordem em que os jogos aparecem no sistema (chave natural unica -> evita duplicar no seed)
   fase: text("fase"), // ex.: "Fase de grupos", "16 avos de final", "Final"
+  rodada: integer("rodada"), // 1..5 (sistema de rodadas; ver lib/constants.rodadaForOrdem)
   teamA: text("team_a").notNull(),
   teamB: text("team_b").notNull(),
   flagA: text("flag_a"), // codigo ISO / emoji da bandeira
@@ -80,6 +81,8 @@ export const matchQuestions = pgTable(
       .references(() => questions.id, { onDelete: "restrict" }),
     ordem: integer("ordem").notNull(),
     respostaCorreta: text("resposta_correta"),
+    // Odds finais por opcao (preenchidas na apuracao, Rodada 2+). Ex: { "Brasil": 1.8 }
+    odds: jsonb("odds").$type<Record<string, number>>(),
   },
   (t) => ({
     uniqMatchQuestion: unique().on(t.matchId, t.questionId),

@@ -91,6 +91,27 @@ export const QUESTION_POOL: QuestionSeed[] = [
     opcoes: [],
   },
   {
+    codigo: "classificado",
+    texto: "Quem classifica para a proxima fase?",
+    tipo: "escolha",
+    dificuldade: "facil",
+    opcoes: ["[A]", "[B]"],
+  },
+  {
+    codigo: "prorrogacao",
+    texto: "Vai ter prorrogacao?",
+    tipo: "sim_nao",
+    dificuldade: "media",
+    opcoes: ["Sim", "Nao"],
+  },
+  {
+    codigo: "disputa_penaltis",
+    texto: "Vai ter disputa de penaltis?",
+    tipo: "sim_nao",
+    dificuldade: "dificil",
+    opcoes: ["Sim", "Nao"],
+  },
+  {
     codigo: "reserva_gol",
     texto: "Algum jogador reserva marca gol?",
     tipo: "sim_nao",

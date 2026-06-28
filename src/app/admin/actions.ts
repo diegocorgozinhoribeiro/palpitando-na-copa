@@ -7,6 +7,12 @@ import { matches, matchQuestions, questions } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { scoreMatch } from "@/lib/scoring";
 import { STATUS } from "@/lib/constants";
+import {
+  isMatchDefinedByTeams,
+  updateRoundOf32FromGroupStandings,
+  updateKnockoutBracketAfterMatch,
+} from "@/lib/knockout";
+import { drawQuestionsForMatch } from "@/scripts/draw";
 
 // Salva as respostas corretas das perguntas + placar e (opcionalmente) finaliza
 // o jogo, disparando a correcao de todos os palpites.
@@ -50,10 +56,13 @@ export async function saveResultsAction(_prev: unknown, formData: FormData) {
 
   if (finalize) {
     await scoreMatch(matchId);
+    await updateRoundOf32FromGroupStandings();
+    await updateKnockoutBracketAfterMatch(matchId);
   }
 
   revalidatePath(`/admin/jogos/${matchId}`);
   revalidatePath("/admin");
+  revalidatePath("/jogos");
   revalidatePath("/ranking");
   return { ok: true, finalize };
 }
@@ -95,18 +104,28 @@ export async function updateMatchAction(_prev: unknown, formData: FormData) {
   const estadio = String(formData.get("estadio") || "").trim() || null;
   const cidade = String(formData.get("cidade") || "").trim() || null;
   const kickoff = String(formData.get("kickoffAt") || "").trim();
+  const definido = teamA && teamB ? isMatchDefinedByTeams(teamA, teamB) : false;
+
   await db
     .update(matches)
     .set({
       teamA: teamA || undefined,
       teamB: teamB || undefined,
+      definido: teamA && teamB ? definido : undefined,
       grupo,
       estadio,
       cidade,
       kickoffAt: kickoff ? new Date(kickoff) : undefined,
     })
     .where(eq(matches.id, matchId));
+
+  if (definido) {
+    await drawQuestionsForMatch(matchId);
+  }
+
   revalidatePath(`/admin/jogos/${matchId}`);
+  revalidatePath("/admin");
+  revalidatePath("/jogos");
   return { ok: true };
 }
 

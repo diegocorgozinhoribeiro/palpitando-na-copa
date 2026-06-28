@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { leagues } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { getLeagueRanking } from "@/lib/queries";
-import { RankingTable } from "@/components/RankingTable";
+import { getFullRanking } from "@/lib/queries";
+import { RankingTabs } from "@/components/RankingTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function LeaguePage({
     .where(eq(leagues.codigo, codigo.toUpperCase()))
     .limit(1);
   if (!league) notFound();
-  const ranking = await getLeagueRanking(league.id);
+  const full = await getFullRanking(league.id);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
 
   return (
@@ -36,7 +36,13 @@ export default async function LeaguePage({
         </p>
       </div>
       <h2 className="text-lg font-semibold">Ranking da liga</h2>
-      <RankingTable rows={ranking} highlightUserId={user.id} />
+      <RankingTabs
+        rounds={full.rounds}
+        currentRound={full.currentRound}
+        perRound={full.perRound}
+        geral={full.geral}
+        highlightUserId={user.id}
+      />
     </div>
   );
 }

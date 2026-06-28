@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { db } from "@/db";
 import { questions, matches } from "@/db/schema";
 import { QUESTION_POOL } from "@/data/questions";
-import { DIFFICULTY_POINTS } from "@/lib/constants";
+import { DIFFICULTY_POINTS, rodadaForOrdem } from "@/lib/constants";
 import { drawQuestionsForAllMatches } from "./draw";
 
 async function main() {
@@ -40,6 +40,7 @@ async function main() {
       cidade: (m.cidade as string) ?? null,
       kickoffAt: new Date(m.kickoffAt as string),
       definido: (m.definido as boolean) ?? true,
+      rodada: rodadaForOrdem(m.ordem as number),
     };
     // Upsert por ordem: idempotente. Se o jogo ja existe, atualiza os dados
     // (times/datas/fase/definido) sem mexer em status/placar do admin.

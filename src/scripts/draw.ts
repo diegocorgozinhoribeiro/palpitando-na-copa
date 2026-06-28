@@ -2,7 +2,12 @@ import "dotenv/config";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { matches, questions, matchQuestions } from "@/db/schema";
-import { QUESTIONS_PER_MATCH } from "@/lib/constants";
+import {
+  FIXED_CODES_DEFAULT,
+  FIXED_CODES_MATA_MATA,
+  QUESTIONS_PER_MATCH,
+  isMataMataOrdem,
+} from "@/lib/constants";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -13,14 +18,26 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// Sorteia QUESTIONS_PER_MATCH perguntas para um jogo, garantindo que a
-// pergunta 'vencedor' sempre esteja presente (e o card principal do jogo).
+// Sorteia QUESTIONS_PER_MATCH perguntas para um jogo, garantindo perguntas
+// fixas. No mata-mata entram perguntas especificas: classificado,
+// prorrogacao e disputa de penaltis.
 export async function drawQuestionsForMatch(matchId: string): Promise<boolean> {
   const existing = await db
     .select({ id: matchQuestions.id })
     .from(matchQuestions)
     .where(eq(matchQuestions.matchId, matchId));
   if (existing.length > 0) return false; // ja sorteado; nao re-sorteia
+
+  const [match] = await db
+    .select({ ordem: matches.ordem })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+  if (!match) return false;
+
+  const fixedCodes = isMataMataOrdem(match.ordem)
+    ? FIXED_CODES_MATA_MATA
+    : FIXED_CODES_DEFAULT;
 
   const pool = await db
     .select()
@@ -29,11 +46,13 @@ export async function drawQuestionsForMatch(matchId: string): Promise<boolean> {
   if (pool.length === 0)
     throw new Error("Pool de perguntas vazio. Rode o seed antes.");
 
-  const vencedor = pool.find((q) => q.codigo === "vencedor");
-  const resto = shuffle(pool.filter((q) => q.codigo !== "vencedor"));
+  // Perguntas fixas primeiro (na ordem definida em FIXED_CODES).
+  const fixas = fixedCodes
+    .map((code) => pool.find((q) => q.codigo === code))
+    .filter((q): q is (typeof pool)[number] => Boolean(q));
+  const resto = shuffle(pool.filter((q) => !fixedCodes.includes(q.codigo)));
 
-  const escolhidas = [] as typeof pool;
-  if (vencedor) escolhidas.push(vencedor);
+  const escolhidas = [...fixas];
   for (const q of resto) {
     if (escolhidas.length >= QUESTIONS_PER_MATCH) break;
     escolhidas.push(q);
